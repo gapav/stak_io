@@ -25,36 +25,38 @@ if "tab2_feedback" not in st.session_state:
 st.title("Skiing Technique Analysis")
 st.caption("Analyze and improve your skiing technique across four key areas.")
 
-# Video Upload Section
-uploaded_video = st.file_uploader(
-    "Upload your skiing video", type=["mp4", "mov", "avi", "asf", "m4v"]
-)
+# Sidebar for video upload
+with st.sidebar:
+    st.title("Video Upload")
+    uploaded_video = st.file_uploader(
+        "Upload your skiing video", type=["mp4", "mov", "avi", "asf", "m4v"]
+    )
 
-# Process the video only if it's uploaded and hasn't been processed yet
-if uploaded_video and "processed_video" not in st.session_state:
-    with st.spinner("Processing your video..."):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_video:
-            tmp_video.write(uploaded_video.read())
-            tmp_video_path = tmp_video.name
+    # Process the video only if it's uploaded and hasn't been processed yet
+    if uploaded_video and "processed_video" not in st.session_state:
+        with st.spinner("Processing your video..."):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp_video:
+                tmp_video.write(uploaded_video.read())
+                tmp_video_path = tmp_video.name
 
-        # Process video and update session state
-        hip_image_path, lean_image_path, max_hip_angle, max_lean_angle = (
-            process_video_angles(tmp_video_path)
-        )
-        st.session_state["results"] = {
-            "hip_image": hip_image_path,
-            "lean_image": lean_image_path,
-            "max_hip_angle": max_hip_angle,
-            "max_lean_angle": max_lean_angle,
-        }
-        st.session_state["processed_video"] = True  # Mark video as processed
+            # Process video and update session state
+            hip_image_path, lean_image_path, max_hip_angle, max_lean_angle = (
+                process_video_angles(tmp_video_path)
+            )
+            st.session_state["results"] = {
+                "hip_image": hip_image_path,
+                "lean_image": lean_image_path,
+                "max_hip_angle": max_hip_angle,
+                "max_lean_angle": max_lean_angle,
+            }
+            st.session_state["processed_video"] = True  # Mark video as processed
 
 
 # Function to generate text dynamically
 def response_generator(response: str):
     for word in response.split():
         yield word + " "
-        time.sleep(0.07)
+        time.sleep(0.03)
 
 
 # Dropdown menu for tab selection
