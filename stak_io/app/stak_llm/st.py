@@ -53,6 +53,7 @@ for msg in st.session_state.messages:
 uploaded_video = st.file_uploader(
     "Upload your skiing video", type=["mp4", "mov", "avi", "asf", "m4v"]
 )
+
 if uploaded_video:
     st.session_state.messages.append(
         {"role": "user", "content": "Here is my Erg video!"}
@@ -115,8 +116,6 @@ if uploaded_video:
     with st.chat_message("assistant"):
         st.image(hip_image_path)
         st.write(response_generator(hip_angle_advice))
-
-    # Decision point to continue with forward lean analysis
 
     with st.chat_message("assistant"):
         st.write(response_generator(feedback3))
