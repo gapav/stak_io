@@ -21,13 +21,20 @@ if "tab1_feedback" not in st.session_state:
 if "tab2_feedback" not in st.session_state:
     st.session_state["tab2_feedback"] = False
 
-# Title and description
-st.title("Skiing Technique Analysis")
+    # Title and description
+    st.image(
+        "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/header.png",
+    )
 st.caption("Analyze and improve your skiing technique across four key areas.")
 
 # Sidebar for video upload
 with st.sidebar:
+    st.image(
+        "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/logo_alt.png",
+        use_container_width=True,
+    )
     st.title("Video Upload")
+
     uploaded_video = st.file_uploader(
         "Upload your skiing video", type=["mp4", "mov", "avi", "asf", "m4v"]
     )
@@ -60,7 +67,9 @@ def response_generator(response: str):
 
 
 # Dropdown menu for tab selection
+# Add a Landing Page tab
 tabs = {
+    "landing_page": "Welcome!",
     "tab1": "Initial Start of Stroke",
     "tab2": "End of Stroke",
     "tab3": "Return to Extended Position",
@@ -69,7 +78,9 @@ tabs = {
 active_tab = st.selectbox("Select Analysis Tab", list(tabs.values()))
 
 # Update session state for active tab
-if active_tab == tabs["tab1"]:
+if active_tab == tabs["landing_page"]:
+    st.session_state["active_tab"] = "landing_page"
+elif active_tab == tabs["tab1"]:
     if st.session_state["active_tab"] != "tab1":
         st.session_state["active_tab"] = "tab1"
         st.session_state["tab1_feedback"] = False
@@ -78,8 +89,37 @@ elif active_tab == tabs["tab2"]:
         st.session_state["active_tab"] = "tab2"
         st.session_state["tab2_feedback"] = False
 
+# Landing Page content
+if active_tab == tabs["landing_page"]:
+    st.title("Welcome to Stak.io!")
+    st.subheader("Why Stak.io?")
+    st.write(
+        "Double-poling (DP) technique on the SkiErg might differ significantly from DP technique on skis. "
+        "Achieving impressive numbers on the SkiErg doesn’t always translate to powerful, efficient technique on snow. "
+        "Stak.io is here to bridge that gap by providing actionable feedback to help refine your technique. With this app, "
+        "you can ensure that your hard-earned hours on the erg contribute to a powerful, economical technique on snow, "
+        "maximizing your performance and minimizing energy waste."
+    )
+
+    st.subheader("How to Use Stak.io")
+    st.markdown(
+        """
+        1. **Upload Your Video:** Record your double-poling session on the SkiErg and upload the video directly into the app.
+        2. **Review Key Frames:** The app identifies four key moments in your double-poling motion: 
+           - Full body extension
+           - Pole plant
+           - Middle of the pole motion
+           - End of the pole motion
+        3. **Receive Feedback:** The app calculates angles and pose information at these moments and provides detailed feedback on how closely your technique matches optimal form.
+        4. **Apply Suggestions:** Use the insights to adjust your form and improve your efficiency, ensuring that your SkiErg technique translates to powerful, effective performance on snow.
+        """
+    )
+
+# Rest of the tabs remain unchanged
+
+
 # Tab 1: Initial Start of Stroke
-if active_tab == tabs["tab1"]:
+elif active_tab == tabs["tab1"]:
     st.header("Initial Start of Stroke")
     if st.session_state["results"]["hip_image"]:
         col1, col2 = st.columns([1, 2])
@@ -88,7 +128,7 @@ if active_tab == tabs["tab1"]:
         with col2:
             st.subheader("Feedback")
             feedback1 = (
-                f"Great job! Your max hip angle is **{st.session_state['results']['max_hip_angle']:.1f}°**, "
+                f"Let´s start where the stroke starts: With the body in a (hopefully) fulle extended ....! Your max hip angle is **{st.session_state['results']['max_hip_angle']:.1f}°**, "
                 "which is within an excellent range. Maintaining this level of posture will "
                 "help you generate more power and reduce fatigue."
             )
@@ -97,7 +137,10 @@ if active_tab == tabs["tab1"]:
                 "This will help maintain alignment and prevent over-extension."
             )
             if not st.session_state["tab1_feedback"]:
-                with st.chat_message("assistant"):
+                with st.chat_message(
+                    "assistant",
+                    avatar="/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/button_alt.png",
+                ):
                     st.write(response_generator(feedback1))
                 st.session_state["tab1_feedback"] = True
     else:
@@ -123,7 +166,10 @@ elif active_tab == tabs["tab2"]:
                 "Practice ending your stroke with a controlled forward motion."
             )
             if not st.session_state["tab2_feedback"]:
-                with st.chat_message("assistant"):
+                with st.chat_message(
+                    "assistant",
+                    avatar="/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/button_alt.png",
+                ):
                     st.write(response_generator(feedback1))
                 st.session_state["tab2_feedback"] = True
     else:
