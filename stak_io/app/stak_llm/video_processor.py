@@ -1,3 +1,4 @@
+from io import BytesIO
 from typing import Tuple, Optional
 import cv2
 import mediapipe as mp
@@ -198,3 +199,57 @@ def process_video_angles(
         max_hip_angle,
         max_forward_lean_angle,
     )
+
+
+mp_selfie_segmentation = mp.solutions.selfie_segmentation
+
+
+def process_video_in_memory(video_file_path: str) -> BytesIO:
+    """Process a video and return it as a BytesIO object."""
+    cap = cv2.VideoCapture(video_file_path)
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    video_stream = BytesIO()
+
+    with mp_pose.Pose(
+        min_detection_confidence=0.5, min_tracking_confidence=0.5
+    ) as pose:
+        with mp_selfie_segmentation.SelfieSegmentation(
+            model_selection=1
+        ) as selfie_segmentation:
+            height, width = (
+                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            )
+            fps = cap.get(cv2.CAP_PROP_FPS)
+
+            # Use VideoWriter to write to a buffer
+            out = cv2.VideoWriter(video_stream, fourcc, fps, (width, height))
+
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                segmentation_results = selfie_segmentation.process(frame_rgb)
+
+                mask = segmentation_results.segmentation_mask
+                mask = (mask > 0.5).astype(np.uint8) * 255
+                mask_colored = cv2.applyColorMap(mask, cv2.COLORMAP_JET)
+                overlay = cv2.addWeighted(frame, 0.6, mask_colored, 0.4, 0)
+
+                out.write(overlay)
+
+            cap.release()
+            out.release()
+
+    video_stream.seek(0)
+    return video_stream
+
+
+video_bytes = process_video_in_memory("input_video.mp4")
+st.video(video_bytes)
+
+
+# Example usage:
+# process_video_with_segmentation("input_video.mp4", "output_with_segmentation.mp4")
