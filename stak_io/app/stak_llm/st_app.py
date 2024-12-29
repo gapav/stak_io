@@ -6,9 +6,15 @@ from video_processor import process_video_angles
 # Constants for paths
 LOGO_PATH = "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/logo_alt.png"
 HEADER_IMAGE_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/header.png"
+    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/header_w_arrow.png"
 )
 AVATAR_PATH = "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/button_alt.png"
+PROC_COMPL_PATH = (
+    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/proc_compl.png"
+)
+UPLOAD_ARROW_PATH = (
+    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/upload_to_cont.png"
+)
 
 # Page configuration
 st.set_page_config(page_title="Stakj.io", page_icon="⛷️", layout="wide")
@@ -21,6 +27,9 @@ def initialize_session_state():
         "lean_image": None,
         "max_hip_angle": None,
         "max_lean_angle": None,
+        "frames_with_landmarks": [],
+        "frames_without_landmarks": [],
+        "processed_video_path": None,
     }
     st.session_state.setdefault("results", default_results)
     st.session_state.setdefault("active_tab", "landing_page")
@@ -36,9 +45,11 @@ def render_sidebar():
     with st.sidebar:
         st.image(LOGO_PATH, use_container_width=True)
         st.title("Video Upload")
-        return st.file_uploader(
+
+        file_upload = st.file_uploader(
             "Upload your skiing video", type=["mp4", "mov", "avi", "asf", "m4v"]
         )
+        return file_upload
 
 
 def process_uploaded_video(uploaded_video):
@@ -47,19 +58,28 @@ def process_uploaded_video(uploaded_video):
             tmp_video.write(uploaded_video.read())
             tmp_video_path = tmp_video.name
 
-        hip_image_path, lean_image_path, max_hip_angle, max_lean_angle = (
-            process_video_angles(tmp_video_path)
-        )
+        # Process video to save random frames with and without landmarks
+        (
+            hip_image_path,
+            lean_image_path,
+            max_hip_angle,
+            max_lean_angle,
+            frames_with_landmarks,
+            frames_without_landmarks,
+        ) = process_video_angles(tmp_video_path)
+
         st.session_state["results"].update(
             {
                 "hip_image": hip_image_path,
                 "lean_image": lean_image_path,
                 "max_hip_angle": max_hip_angle,
                 "max_lean_angle": max_lean_angle,
+                "frames_with_landmarks": frames_with_landmarks,
+                "frames_without_landmarks": frames_without_landmarks,
             }
         )
         st.session_state["processed_video"] = True
-        st.session_state["active_tab"] = "tab1"
+        st.session_state["active_tab"] = "tab_processing_complete"
 
 
 # Response generator for chatbot-like feedback
@@ -71,19 +91,24 @@ def response_generator(response: str):
 
 # Render tab selection dropdown
 def render_tab_selector(tabs):
-    active_tab = st.selectbox(
+    def update_tab():
+        st.session_state["active_tab"] = list(tabs.keys())[
+            list(tabs.values()).index(st.session_state["selected_tab"])
+        ]
+
+    # Use a dropdown linked to `st.session_state`
+
+    st.selectbox(
         "Select Analysis Tab",
-        list(tabs.values()),
+        options=list(tabs.values()),
         index=list(tabs.keys()).index(st.session_state["active_tab"]),
+        key="selected_tab",
+        on_change=update_tab,  # Callback to update the active tab
     )
-    st.session_state["active_tab"] = list(tabs.keys())[
-        list(tabs.values()).index(active_tab)
-    ]
 
 
 def render_landing_page():
     st.image(HEADER_IMAGE_PATH)
-    st.title("Welcome to Stak.io!")
     st.subheader("Why Stak.io?")
     st.write(
         "Double-poling (DP) technique on the SkiErg might differ significantly from DP technique on skis. "
@@ -98,10 +123,15 @@ def render_landing_page():
         **Upload Your Video:** Record your double-poling session on the SkiErg and upload the video directly in the sidebar.
         """
     )
+    st.subheader("Contact Us")
+    st.write(
+        "Have questions or feedback? Reach out at [gardpavels@gmail.com](mailto:gardpavels@gmail.com)"
+    )
 
 
 def render_tab_content(tab_name, image_key, angle_key, feedback_key, feedback_text):
     st.header(tab_name)
+
     if st.session_state["results"][image_key]:
         col1, col2 = st.columns([1, 2])
         with col1:
@@ -109,14 +139,38 @@ def render_tab_content(tab_name, image_key, angle_key, feedback_key, feedback_te
                 st.session_state["results"][image_key], caption=f"{tab_name} Analysis"
             )
         with col2:
-            st.subheader("Feedback")
             if feedback_key not in st.session_state:
                 st.session_state[feedback_key] = [feedback_text]
             for message in st.session_state[feedback_key]:
                 with st.chat_message("assistant", avatar=AVATAR_PATH):
                     st.write(response_generator(message))
     else:
-        st.write("Upload a video to see the analysis.")
+        st.image(UPLOAD_ARROW_PATH)
+
+
+def render_tab_processing_complete(tab_name, feedback_key, feedback_text):
+    frames_with_landmarks = st.session_state["results"].get("frames_with_landmarks", [])
+    frames_without_landmarks = st.session_state["results"].get(
+        "frames_without_landmarks", []
+    )
+
+    if len(frames_with_landmarks) > 0 and len(frames_without_landmarks) > 0:
+        st.image(PROC_COMPL_PATH)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.image(frames_without_landmarks[0])
+        with col2:
+            st.image(
+                frames_with_landmarks[0],
+            )
+        with col3:
+            if feedback_key not in st.session_state:
+                st.session_state[feedback_key] = [feedback_text]
+            for message in st.session_state[feedback_key]:
+                with st.chat_message("assistant", avatar=AVATAR_PATH):
+                    st.write(response_generator(message))
+    else:
+        st.image(UPLOAD_ARROW_PATH)
 
 
 # Main app logic
@@ -126,9 +180,10 @@ if uploaded_video and "processed_video" not in st.session_state:
 
 TABS = {
     "landing_page": "Welcome!",
-    "tab1": "Initial Start of Stroke",
-    "tab2": "Forward Lean",
-    "tab3": "Return to Extended Position",
+    "tab_processing_complete": "Processing steps",
+    "tab1": "Key Element #1: The Hips",
+    "tab2": "Key Element #2: The Forward Lean",
+    "tab3": "Key Element #3: The Return to Extended Position",
     "tab4": "Advanced Techniques",
 }
 render_tab_selector(TABS)
@@ -136,26 +191,34 @@ render_tab_selector(TABS)
 if st.session_state["active_tab"] == "landing_page":
     render_landing_page()
 
+elif st.session_state["active_tab"] == "tab_processing_complete":
+    render_tab_processing_complete(
+        tab_name="Processing Steps",
+        feedback_key="process_feedback_text",
+        feedback_text="Processing complete! Key points have been successfully identified, enabling us to analyze critical biomechanical details such as joint positions and motion patterns. This provides a solid foundation for evaluating and improving your technique.",
+    )
+
 elif st.session_state["active_tab"] == "tab1":
-    feedback_text = f"Your maximum hip angle is **{st.session_state['results']['max_hip_angle']:.1f}°**, which is excellent."
+    feedback_text = f"Let’s start by analyzing the beginning of your stroke, which is a critical phase for setting up an efficient and powerful double-pole motion. Ideally, your hips should be in a close to fully extended position, allowing for maximum reach and optimal power transfer. Your recorded maximum hip angle is ≈ **{st.session_state['results']['max_hip_angle']:.0f}°**, which falls within an excellent range for effective double-poling. This indicates that you are starting your stroke with strong posture and alignment, which are essential for generating maximum power and minimizing unnecessary energy expenditure. Maintaining this level of extension throughout your technique will not only improve your efficiency but also reduce fatigue during prolonged efforts. This strong starting position sets a solid foundation for the rest of your stroke. Moving forward, we’ll look at how this extension transitions into the next phases of your movement to ensure you’re capitalizing on this great setup for consistent and powerful strokes."
     render_tab_content(
-        "Initial Start of Stroke",
+        "The Hips",
         "hip_image",
         "max_hip_angle",
         "tab1_feedback_text",
         feedback_text,
     )
 elif st.session_state["active_tab"] == "tab2":
-    feedback_text = f"Your maximum lean angle is **{st.session_state['results']['max_lean_angle']:.1f}°**, which is effective."
+    feedback_text = f"You demonstrate a solid forward lean (≈ **{st.session_state['results']['max_lean_angle']:.0f}°**), reflecting a strong and effective position during the most extended phase of your stroke. This forward lean is crucial for efficiently transferring power from your upper body and core into the poles and, ultimately, into the snow. Maintaining this lean ensures optimal force application and energy efficiency, supporting better endurance performance. As we refine your technique, we’ll focus on keeping this lean integrated with the other stroke phases for smooth and consistent power delivery."
+
     render_tab_content(
-        "Forward Lean",
+        "The Forward Lean",
         "lean_image",
         "max_lean_angle",
         "tab2_feedback_text",
         feedback_text,
     )
 elif st.session_state["active_tab"] == "tab3":
-    st.header("Return to Extended Position")
+    st.header("The Return to Extended Position")
     st.write("Content for this section coming soon!")
 elif st.session_state["active_tab"] == "tab4":
     st.header("Advanced Techniques")

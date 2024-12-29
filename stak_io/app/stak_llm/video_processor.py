@@ -5,6 +5,7 @@ import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
+from mediapipe import solutions as mp_solutions
 
 mp_pose = mp.solutions.pose
 
@@ -119,78 +120,149 @@ def process_frame(
     return 0, 0, None, None
 
 
+from typing import Tuple, Optional, List
+import cv2
+import mediapipe as mp
+
+
+# Helper functions
+def capture_video_frames(video_file_path: str):
+    cap = cv2.VideoCapture(video_file_path)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        yield frame
+    cap.release()
+
+
+def initialize_pose_detector():
+    return mp.solutions.pose.Pose(
+        min_detection_confidence=0.5, enable_segmentation=True
+    )
+
+
+def process_frame(frame, pose):
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return pose.process(frame_rgb)
+
+
+def calculate_max_hip_angle(
+    landmarks, max_hip_angle, frame, landmarks_with_max_hip_angle
+):
+    hip_angle = calculate_angle(
+        landmarks[12],  # Shoulder
+        landmarks[24],  # Hip
+        landmarks[26],  # Knee
+    )
+    if hip_angle > max_hip_angle:
+        max_hip_angle = hip_angle
+        return hip_angle, frame.copy(), landmarks
+    return max_hip_angle, None, None
+
+
+def overlay_landmarks(frame, landmarks, pose_connections):
+    frame_with_landmarks = frame.copy()
+    mp.solutions.drawing_utils.draw_landmarks(
+        frame_with_landmarks,
+        landmarks,
+        pose_connections,
+        landmark_drawing_spec=mp.solutions.drawing_styles.get_default_pose_landmarks_style(),
+    )
+    return frame_with_landmarks
+
+
+def generate_visualizations(
+    frame, landmarks, shape, points_indices, connections, output_path
+):
+    points = extract_landmark_points(landmarks, points_indices, shape)
+    visualize_landmarks(frame, points, connections, output_path)
+    return output_path
+
+
+def calculate_max_forward_lean(landmarks, frame):
+    return calculate_forward_lean_angle(
+        (
+            landmarks[12].x * frame.shape[1],
+            landmarks[12].y * frame.shape[0],
+        ),
+        (
+            landmarks[32].x * frame.shape[1],
+            landmarks[32].y * frame.shape[0],
+        ),
+    )
+
+
 def process_video_angles(
     video_file_path: str,
-) -> Tuple[Optional[str], Optional[str], float, float]:
-    """Process a video to find the maximum hip angle and corresponding forward lean angle."""
-    cap = cv2.VideoCapture(video_file_path)
+) -> Tuple[Optional[str], Optional[str], float, float, List, List]:
+    cap_frames = capture_video_frames(video_file_path)
+
     max_hip_angle = 0
     frame_with_max_hip_angle = None
     landmarks_with_max_hip_angle = None
+    frames_with_landmarks = []
+    frames_without_landmarks = []
+    frame_count = 0
+    first_iteration = True  # Flag to track the first iteration
 
-    with mp_pose.Pose(min_detection_confidence=0.5) as pose:
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
+    with initialize_pose_detector() as pose:
+        for frame in cap_frames:
+            frame_count += 1
 
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            results = pose.process(frame_rgb)
+            results = process_frame(frame, pose)
 
             if results.pose_landmarks:
                 landmarks = results.pose_landmarks.landmark
 
-                # Calculate hip angle
-                hip_angle = calculate_angle(
-                    landmarks[12],  # Shoulder
-                    landmarks[24],  # Hip
-                    landmarks[26],  # Knee
+                max_hip_angle, max_frame, max_landmarks = calculate_max_hip_angle(
+                    landmarks, max_hip_angle, frame, landmarks_with_max_hip_angle
                 )
+                if max_frame is not None:
+                    frame_with_max_hip_angle = max_frame
+                    landmarks_with_max_hip_angle = max_landmarks
 
-                # Update the frame with the max hip angle
-                if hip_angle > max_hip_angle:
-                    max_hip_angle = hip_angle
-                    frame_with_max_hip_angle = frame.copy()
-                    landmarks_with_max_hip_angle = landmarks
+                # Append frames only during the first iteration
+                if first_iteration:
+                    frames_with_landmarks.append(
+                        overlay_landmarks(
+                            frame,
+                            results.pose_landmarks,
+                            mp.solutions.pose.POSE_CONNECTIONS,
+                        )
+                    )
+                    frames_without_landmarks.append(frame.copy())
+                    first_iteration = False  # Ensure it only happens once
 
-    cap.release()
-
-    # Calculate forward lean for the frame with the maximum hip angle
     max_forward_lean_angle = 0
-    if frame_with_max_hip_angle is not None and landmarks_with_max_hip_angle:
-        max_forward_lean_angle = calculate_forward_lean_angle(
-            (
-                landmarks_with_max_hip_angle[12].x * frame_with_max_hip_angle.shape[1],
-                landmarks_with_max_hip_angle[12].y * frame_with_max_hip_angle.shape[0],
-            ),
-            (
-                landmarks_with_max_hip_angle[32].x * frame_with_max_hip_angle.shape[1],
-                landmarks_with_max_hip_angle[32].y * frame_with_max_hip_angle.shape[0],
-            ),
+    if (
+        frame_with_max_hip_angle is not None
+        and landmarks_with_max_hip_angle is not None
+    ):
+        max_forward_lean_angle = calculate_max_forward_lean(
+            landmarks_with_max_hip_angle, frame_with_max_hip_angle
         )
 
-    # Generate visualizations
     hip_visualization_path = None
     lean_visualization_path = None
 
     if frame_with_max_hip_angle is not None:
-        hip_points = extract_landmark_points(
-            landmarks_with_max_hip_angle, [12, 24, 26], frame_with_max_hip_angle.shape
-        )
-        hip_visualization_path = "max_hip_angle_visualization.png"
-        visualize_landmarks(
+        hip_visualization_path = generate_visualizations(
             frame_with_max_hip_angle,
-            hip_points,
+            landmarks_with_max_hip_angle,
+            frame_with_max_hip_angle.shape,
+            [12, 24, 26],
             [(0, 1), (1, 2)],
-            hip_visualization_path,
+            "max_hip_angle_visualization.png",
         )
 
-        lean_points = extract_landmark_points(
-            landmarks_with_max_hip_angle, [12, 32], frame_with_max_hip_angle.shape
-        )
-        lean_visualization_path = "forward_lean_visualization.png"
-        visualize_landmarks(
-            frame_with_max_hip_angle, lean_points, [(0, 1)], lean_visualization_path
+        lean_visualization_path = generate_visualizations(
+            frame_with_max_hip_angle,
+            landmarks_with_max_hip_angle,
+            frame_with_max_hip_angle.shape,
+            [12, 32],
+            [(0, 1)],
+            "forward_lean_visualization.png",
         )
 
     return (
@@ -198,58 +270,6 @@ def process_video_angles(
         lean_visualization_path,
         max_hip_angle,
         max_forward_lean_angle,
+        frames_with_landmarks,
+        frames_without_landmarks,
     )
-
-
-mp_selfie_segmentation = mp.solutions.selfie_segmentation
-
-
-def process_video_in_memory(video_file_path: str) -> BytesIO:
-    """Process a video and return it as a BytesIO object."""
-    cap = cv2.VideoCapture(video_file_path)
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    video_stream = BytesIO()
-
-    with mp_pose.Pose(
-        min_detection_confidence=0.5, min_tracking_confidence=0.5
-    ) as pose:
-        with mp_selfie_segmentation.SelfieSegmentation(
-            model_selection=1
-        ) as selfie_segmentation:
-            height, width = (
-                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-            )
-            fps = cap.get(cv2.CAP_PROP_FPS)
-
-            # Use VideoWriter to write to a buffer
-            out = cv2.VideoWriter(video_stream, fourcc, fps, (width, height))
-
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
-
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                segmentation_results = selfie_segmentation.process(frame_rgb)
-
-                mask = segmentation_results.segmentation_mask
-                mask = (mask > 0.5).astype(np.uint8) * 255
-                mask_colored = cv2.applyColorMap(mask, cv2.COLORMAP_JET)
-                overlay = cv2.addWeighted(frame, 0.6, mask_colored, 0.4, 0)
-
-                out.write(overlay)
-
-            cap.release()
-            out.release()
-
-    video_stream.seek(0)
-    return video_stream
-
-
-video_bytes = process_video_in_memory("input_video.mp4")
-st.video(video_bytes)
-
-
-# Example usage:
-# process_video_with_segmentation("input_video.mp4", "output_with_segmentation.mp4")
