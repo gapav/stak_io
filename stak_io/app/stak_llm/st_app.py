@@ -4,9 +4,11 @@ import time
 from video_processor import process_video_angles
 
 # Constants for paths
-LOGO_PATH = "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/logo_alt.png"
+SIDEBAR_LOGO_PATH = (
+    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/sidebar_logo_blck.png"
+)
 HEADER_IMAGE_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/header_w_arrow.png"
+    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/logo_B.png"
 )
 AVATAR_PATH = "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/button_alt.png"
 PROC_COMPL_PATH = (
@@ -43,7 +45,7 @@ initialize_session_state()
 # Sidebar for video upload
 def render_sidebar():
     with st.sidebar:
-        st.image(LOGO_PATH, use_container_width=True)
+        st.image(SIDEBAR_LOGO_PATH, use_container_width=True)
         st.title("Video Upload")
 
         file_upload = st.file_uploader(
