@@ -1,11 +1,11 @@
 from io import BytesIO
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import cv2
 import mediapipe as mp
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw
-from mediapipe import solutions as mp_solutions
+
 
 mp_pose = mp.solutions.pose
 
@@ -118,11 +118,6 @@ def process_frame(
         return hip_angle, forward_lean_angle, frame.copy(), landmarks
 
     return 0, 0, None, None
-
-
-from typing import Tuple, Optional, List
-import cv2
-import mediapipe as mp
 
 
 # Helper functions
@@ -253,7 +248,7 @@ def process_video_angles(
             frame_with_max_hip_angle.shape,
             [12, 24, 26],
             [(0, 1), (1, 2)],
-            "max_hip_angle_visualization.png",
+            "./model_output/max_hip_angle_visualization.png",
         )
 
         lean_visualization_path = generate_visualizations(
@@ -262,7 +257,7 @@ def process_video_angles(
             frame_with_max_hip_angle.shape,
             [12, 32],
             [(0, 1)],
-            "forward_lean_visualization.png",
+            "./model_output/forward_lean_visualization.png",
         )
 
     return (
