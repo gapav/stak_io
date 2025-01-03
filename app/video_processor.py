@@ -248,7 +248,7 @@ def process_video_angles(
             frame_with_max_hip_angle.shape,
             [12, 24, 26],
             [(0, 1), (1, 2)],
-            "./model_output/max_hip_angle_visualization.png",
+            "/opt/stak_io/app/model_output/max_hip_angle_visualization.png",
         )
 
         lean_visualization_path = generate_visualizations(
@@ -257,7 +257,7 @@ def process_video_angles(
             frame_with_max_hip_angle.shape,
             [12, 32],
             [(0, 1)],
-            "./model_output/forward_lean_visualization.png",
+            "/opt/stak_io/app/model_output/forward_lean_visualization.png",
         )
 
     return (

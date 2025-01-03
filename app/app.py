@@ -4,19 +4,11 @@ import time
 from video_processor import process_video_angles
 
 # Constants for paths
-SIDEBAR_LOGO_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/sidebar_logo_blck.png"
-)
-HEADER_IMAGE_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/logo_B.png"
-)
-AVATAR_PATH = "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/button_alt.png"
-PROC_COMPL_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/proc_compl.png"
-)
-UPLOAD_ARROW_PATH = (
-    "/Users/gardpavels/code/stak_io/stak_io/app/stak_llm/media/upload_to_cont.png"
-)
+SIDEBAR_LOGO_PATH = "/opt/stak_io/app/media/sidebar_logo_blck.png"
+HEADER_IMAGE_PATH = "/opt/stak_io/app/media/logo_B.png"
+AVATAR_PATH = "/opt/stak_io/app/media/button_alt.png"
+PROC_COMPL_PATH = "/opt/stak_io/app/media/proc_compl.png"
+UPLOAD_ARROW_PATH = "/opt/stak_io/app/media/upload_to_cont.png"
 
 # Page configuration
 st.set_page_config(page_title="Stakj.io", page_icon="⛷️", layout="wide")
